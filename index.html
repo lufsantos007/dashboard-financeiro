@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Dashboard Financeiro - App</title>
+<title>Dashboard Financeiro - Offline</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#3498db">
@@ -101,6 +101,7 @@ th,td{border-bottom:1px solid #ddd;padding:8px;text-align:center;font-size:0.9em
 const API_URL = "https://script.google.com/macros/s/AKfycbzgc5hJXXqAvgZfcHMdAiHX-XAmRSz8MGBeJaZdyTlxk_8Jz2dtoqThGjlmmPap6HBM/exec";
 
 let dados = [];
+let pendentes = []; // lançamentos offline pendentes
 let barChart, pieChart;
 let eventoAtivo = null;
 
@@ -126,8 +127,10 @@ function definirEvento(){
   localStorage.setItem('eventoAtivo', eventoAtivo);
   eventoTopo.innerText = eventoAtivo;
   atualizar();
+  enviarPendentes(); // tenta enviar pendentes quando define o evento
 }
 
+// CARREGAR DADOS ONLINE COM FALLBACK OFFLINE
 async function carregarOnline() {
   try {
     const r = await fetch(API_URL);
@@ -146,14 +149,35 @@ async function carregarOnline() {
   atualizar();
 }
 
+// SALVAR ONLINE, se falhar salva em pendentes
 async function salvarOnline(registro){
   try {
     await fetch(API_URL,{ method:'POST', body: JSON.stringify(registro) });
   } catch(e){
-    console.log("Não foi possível salvar online");
+    console.log("Offline: salvando lançamento pendente");
+    pendentes.push(registro);
+    localStorage.setItem('pendentes', JSON.stringify(pendentes));
   }
 }
 
+// ENVIAR PENDENTES AUTOMÁTICO
+async function enviarPendentes(){
+  if(!navigator.onLine) return;
+  const pend = JSON.parse(localStorage.getItem('pendentes') || '[]');
+  for(const p of pend){
+    try {
+      await fetch(API_URL,{ method:'POST', body: JSON.stringify(p) });
+    } catch(e){
+      console.log("Ainda offline, pendentes não enviados");
+      return;
+    }
+  }
+  localStorage.setItem('pendentes','[]');
+  pendentes = [];
+  carregarOnline();
+}
+
+// FUNÇÃO DE ATUALIZAÇÃO
 function atualizar(){
   if(!eventoAtivo){ eventoTopo.innerText='Nenhum evento selecionado'; return; }
   let receita=0, despesa=0, categorias={};
@@ -172,6 +196,7 @@ function atualizar(){
   desenharGraficos(receita,despesa,categorias);
 }
 
+// TABELA
 function montarTabela(filtrados){
   tabelaEl.innerHTML='';
   filtrados.forEach(d=>{
@@ -185,6 +210,7 @@ function montarTabela(filtrados){
   });
 }
 
+// ADICIONAR LANÇAMENTO
 function adicionar(){
   if(!item.value || !valor.value) return;
   const novo = { Tipo: tipo.value, Categoria: categoria.value, Item: item.value, Valor: valor.value, Evento: eventoAtivo };
@@ -194,8 +220,8 @@ function adicionar(){
   item.value=''; valor.value='';
 }
 
+// GRÁFICOS
 function gerarVermelhos(q){ return Array.from({length:q},(_,i)=>`rgb(${220-i*120/q},60,60)`); }
-
 function desenharGraficos(receita,despesa,categorias){
   if(barChart) barChart.destroy();
   if(pieChart) pieChart.destroy();
@@ -203,7 +229,17 @@ function desenharGraficos(receita,despesa,categorias){
   pieChart = new Chart(pieChartEl,{ type:'pie', data:{ labels:Object.keys(categorias), datasets:[{data:Object.values(categorias),backgroundColor:gerarVermelhos(Object.keys(categorias).length)}] } });
 }
 
+// EVENTOS DE ONLINE/OFFLINE
+window.addEventListener('online', ()=>{ enviarPendentes(); carregarOnline(); });
+window.addEventListener('offline', ()=>{ console.log("Você está offline"); });
+
+// INICIALIZAÇÃO
+pendentes = JSON.parse(localStorage.getItem('pendentes') || '[]');
+eventoAtivo = localStorage.getItem('eventoAtivo');
+if(eventoAtivo) eventoTopo.innerText = eventoAtivo;
 carregarOnline();
+
+// REGISTRAR SERVICE WORKER
 if ('serviceWorker' in navigator){ navigator.serviceWorker.register('service-worker.js'); }
 </script>
 

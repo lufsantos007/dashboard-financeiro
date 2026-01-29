@@ -124,6 +124,52 @@ const resultadoEl = document.getElementById('resultado');
 const tabelaEl = document.getElementById('tabela');
 
 function parseNumber(v){
+
+<script>
+document.getElementById('file').addEventListener('change', function(e){
+  const reader = new FileReader();
+  reader.onload = ev => importarCSV(ev.target.result);
+  reader.readAsText(e.target.files[0], 'UTF-8');
+});
+
+function importarCSV(text){
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+
+  const sep =
+    lines.find(l => l.includes('\t')) ? '\t' :
+    lines.find(l => l.includes(';')) ? ';' : ',';
+
+  // encontra linha do cabeçalho
+  const headerIndex = lines.findIndex(l =>
+    l.toLowerCase().includes('tipo')
+  );
+
+  if(headerIndex === -1){
+    alert('Não encontrei a linha de cabeçalho da planilha');
+    return;
+  }
+
+  const headers = lines[headerIndex].split(sep).map(h => h.trim());
+
+  dados = lines.slice(headerIndex + 1).map(l => {
+    const c = l.split(sep);
+    let o = {};
+    headers.forEach((h,i)=> o[h] = c[i]);
+
+    return {
+      Tipo: (o.Tipo || '').trim(),
+      Categoria: (o.Categoria || '').trim(),
+      Item: (o.Item || '').trim(),
+      valor: parseNumber(o['Valor Total'])
+    };
+  }).filter(d => d.Tipo && d.valor > 0);
+
+  atualizar();
+}
+</script>
+
+
+  
   return parseFloat(String(v).replace(/\./g,'').replace(',','.')) || 0;
 }
 
@@ -227,4 +273,5 @@ const pieChartEl=document.getElementById('pieChart');
 </script>
 </body>
 </html>
+
 

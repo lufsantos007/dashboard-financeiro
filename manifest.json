@@ -1,18 +1,12 @@
-function doGet(e) {
-  const ss = SpreadsheetApp.getActive();
-  const sheet = ss.getSheetByName("Página1"); // substitua pelo nome correto da aba
-  const rows = sheet.getDataRange().getValues();
-  const headers = rows.shift(); // primeira linha = cabeçalho
-
-  const dados = rows.map(r => {
-    let obj = {};
-    headers.forEach((h,i) => {
-      obj[h] = r[i];
-    });
-    return obj;
-  });
-
-  return ContentService
-    .createTextOutput(JSON.stringify(dados))
-    .setMimeType(ContentService.MimeType.JSON);
+{
+  "name": "Dashboard Financeiro",
+  "short_name": "Finanças",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f0f2f5",
+  "theme_color": "#3498db",
+  "icons":[
+    {"src":"icon-192.png","sizes":"192x192","type":"image/png"},
+    {"src":"icon-512.png","sizes":"512x512","type":"image/png"}
+  ]
 }

@@ -2,12 +2,10 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Dashboard Financeiro - Offline</title>
-
+<title>Dashboard Financeiro</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#3498db">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
@@ -25,7 +23,6 @@ header{position:fixed;top:0;left:0;width:100%;background:#3498db;color:#fff;padd
 .form-box h3{margin-bottom:10px;}
 input,select,button{width:100%;margin:5px 0;padding:12px;border-radius:8px;border:1px solid #ccc;font-size:1em;}
 button.btn-add{background:#3498db;color:#fff;border:none;font-weight:bold;font-size:1em;}
-button.btn-remove{background:#e74c3c;color:#fff;border:none;font-weight:bold;font-size:1em;}
 .table-box{background:#fff;padding:15px;border-radius:12px;margin-top:20px;overflow-x:auto;box-shadow:0 2px 6px rgba(0,0,0,0.15);}
 table{width:100%;border-collapse:collapse;}
 th,td{border-bottom:1px solid #ddd;padding:8px;text-align:center;font-size:0.9em;}
@@ -43,10 +40,9 @@ th,td{border-bottom:1px solid #ddd;padding:8px;text-align:center;font-size:0.9em
 
   <!-- FORMULÁRIO DE EVENTO -->
   <div class="form-box">
-    <h3>📅 Evento</h3>
-    <input id="eventoNome" placeholder="Nome do evento">
-    <input id="eventoData" type="date">
-    <button class="btn-add" onclick="definirEvento()">Definir evento</button>
+    <h3>📅 Selecionar Evento</h3>
+    <input id="eventoNome" placeholder="Digite o nome do evento">
+    <button class="btn-add" onclick="definirEvento()">Selecionar Evento</button>
   </div>
 
   <!-- CARDS -->
@@ -62,34 +58,12 @@ th,td{border-bottom:1px solid #ddd;padding:8px;text-align:center;font-size:0.9em
     <div class="chart-box"><canvas id="pieChart"></canvas></div>
   </div>
 
-  <!-- FORMULÁRIO DE LANÇAMENTO -->
-  <div class="form-box">
-    <h3>➕ Novo Lançamento</h3>
-    <select id="tipo">
-      <option value="Receita">Receita</option>
-      <option value="Despesa">Despesa</option>
-    </select>
-    <select id="categoria">
-      <option>Inscrições</option>
-      <option>Patrocínio</option>
-      <option>Kit do Atleta</option>
-      <option>Dispersão / Percurso</option>
-      <option>Estrutura</option>
-      <option>Mão de Obra</option>
-      <option>Despesa Fixa</option>
-      <option>Despesas Diversas</option>
-    </select>
-    <input id="item" placeholder="Item">
-    <input id="valor" type="number" placeholder="Valor">
-    <button class="btn-add" onclick="adicionar()">Adicionar</button>
-  </div>
-
-  <!-- TABELA -->
+  <!-- TABELA DETALHADA -->
   <div class="table-box">
     <h3>📋 Detalhamento</h3>
     <table>
       <thead>
-        <tr><th>Categoria</th><th>Item</th><th>Valor</th><th>Ação</th></tr>
+        <tr><th>Categoria</th><th>Item</th><th>Valor</th></tr>
       </thead>
       <tbody id="tabela"></tbody>
     </table>
@@ -98,10 +72,10 @@ th,td{border-bottom:1px solid #ddd;padding:8px;text-align:center;font-size:0.9em
 </div>
 
 <script>
-const API_URL = "https://script.google.com/macros/s/AKfycbzgc5hJXXqAvgZfcHMdAiHX-XAmRSz8MGBeJaZdyTlxk_8Jz2dtoqThGjlmmPap6HBM/exec";
+const API_URL = "COLE_AQUI_SEU_URL_DO_APPS_SCRIPT"; // substitua pelo seu Apps Script
 
 let dados = [];
-let pendentes = []; // lançamentos offline pendentes
+let pendentes = [];
 let barChart, pieChart;
 let eventoAtivo = null;
 
@@ -109,66 +83,57 @@ const receitaEl = document.getElementById('receita');
 const despesaEl = document.getElementById('despesa');
 const resultadoEl = document.getElementById('resultado');
 const tabelaEl = document.getElementById('tabela');
-const barChartEl = document.getElementById('barChart');
-const pieChartEl = document.getElementById('pieChart');
-const tipo = document.getElementById('tipo');
-const categoria = document.getElementById('categoria');
-const item = document.getElementById('item');
-const valor = document.getElementById('valor');
 const eventoTopo = document.getElementById('eventoTopo');
+const eventoNome = document.getElementById('eventoNome');
 
-function parseNumber(v){ return parseFloat(String(v).replace(/\./g,'').replace(',','.')) || 0; }
+function parseNumber(v){
+  if(!v) return 0;
+  return parseFloat(String(v).replace(/\./g,'').replace(',','.')) || 0;
+}
 
 function definirEvento(){
-  const nome = document.getElementById('eventoNome').value;
-  const data = document.getElementById('eventoData').value;
-  if(!nome || !data){ alert('Informe nome e data do evento'); return; }
-  eventoAtivo = `${nome} (${data})`;
+  const nome = eventoNome.value.trim();
+  if(!nome){ alert("Digite o nome do evento"); return; }
+  eventoAtivo = nome;
   localStorage.setItem('eventoAtivo', eventoAtivo);
   eventoTopo.innerText = eventoAtivo;
   atualizar();
-  enviarPendentes(); // tenta enviar pendentes quando define o evento
+  enviarPendentes();
 }
 
-// CARREGAR DADOS ONLINE COM FALLBACK OFFLINE
+// CARREGAR DADOS ONLINE
 async function carregarOnline() {
   try {
     const r = await fetch(API_URL);
-    if(!r.ok) throw new Error("Erro ao buscar dados");
-    dados = await r.json();
-    dados.forEach(d => d.valor = parseNumber(d.Valor || d.valor));
+    const json = await r.json();
+
+    dados = json.map(d => ({
+      Evento: d.Evento,
+      Tipo: d.Tipo,
+      Categoria: d.Categoria || "Sem Categoria",
+      Item: d.Item || "Sem Item",
+      ValorTotal: parseNumber(d["Valor Total"])
+    }));
+
     localStorage.setItem('dadosOffline', JSON.stringify(dados));
-  } catch (err) {
-    console.log("Offline: usando dados salvos localmente");
-    const offlineData = localStorage.getItem('dadosOffline');
-    if(offlineData) {
-      dados = JSON.parse(offlineData);
-      dados.forEach(d => d.valor = parseNumber(d.Valor || d.valor));
-    } else dados = [];
+  } catch(err){
+    console.log("Offline, usando dados locais");
+    const offline = localStorage.getItem('dadosOffline');
+    dados = offline ? JSON.parse(offline) : [];
   }
+
   atualizar();
 }
 
-// SALVAR ONLINE, se falhar salva em pendentes
-async function salvarOnline(registro){
-  try {
-    await fetch(API_URL,{ method:'POST', body: JSON.stringify(registro) });
-  } catch(e){
-    console.log("Offline: salvando lançamento pendente");
-    pendentes.push(registro);
-    localStorage.setItem('pendentes', JSON.stringify(pendentes));
-  }
-}
-
-// ENVIAR PENDENTES AUTOMÁTICO
+// ENVIAR LANÇAMENTOS PENDENTES
 async function enviarPendentes(){
   if(!navigator.onLine) return;
   const pend = JSON.parse(localStorage.getItem('pendentes') || '[]');
   for(const p of pend){
     try {
-      await fetch(API_URL,{ method:'POST', body: JSON.stringify(p) });
+      await fetch(API_URL,{method:'POST',body: JSON.stringify(p)});
     } catch(e){
-      console.log("Ainda offline, pendentes não enviados");
+      console.log("Offline, não foi possível enviar pendentes");
       return;
     }
   }
@@ -177,59 +142,69 @@ async function enviarPendentes(){
   carregarOnline();
 }
 
-// FUNÇÃO DE ATUALIZAÇÃO
 function atualizar(){
   if(!eventoAtivo){ eventoTopo.innerText='Nenhum evento selecionado'; return; }
-  let receita=0, despesa=0, categorias={};
+
   const filtrados = dados.filter(d => d.Evento === eventoAtivo);
+
+  let receita=0, despesa=0, categorias={};
+
   filtrados.forEach(d=>{
-    if(d.Tipo==='Receita') receita+=d.valor;
-    if(d.Tipo==='Despesa'){ despesa+=d.valor; categorias[d.Categoria]=(categorias[d.Categoria]||0)+d.valor; }
+    if(d.Tipo === "Receita") receita += d.ValorTotal;
+    if(d.Tipo === "Despesa"){
+      despesa += d.ValorTotal;
+      categorias[d.Categoria] = (categorias[d.Categoria] || 0) + d.ValorTotal;
+    }
   });
-  const saldo = receita-despesa;
+
+  const saldo = receita - despesa;
+
   receitaEl.innerText = receita.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
   despesaEl.innerText = despesa.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
   resultadoEl.innerText = saldo.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-  resultadoEl.style.color = saldo>=0 ? '#2ecc71' : '#e74c3c';
-  document.getElementById('cardResultado').style.background = saldo>=0 ? '#e0f7e9' : '#fde0e0';
+  resultadoEl.style.color = saldo >= 0 ? '#2ecc71' : '#e74c3c';
+
   montarTabela(filtrados);
-  desenharGraficos(receita,despesa,categorias);
+  desenharGraficos(receita, despesa, categorias);
 }
 
-// TABELA
+// MONTAR TABELA
 function montarTabela(filtrados){
-  tabelaEl.innerHTML='';
+  tabelaEl.innerHTML = '';
   filtrados.forEach(d=>{
-    tabelaEl.innerHTML+=`
-    <tr>
-      <td>${d.Categoria}</td>
-      <td>${d.Item}</td>
-      <td>${d.valor.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</td>
-      <td>Online</td>
-    </tr>`;
+    tabelaEl.innerHTML += `
+      <tr>
+        <td>${d.Categoria}</td>
+        <td>${d.Item}</td>
+        <td>${d.ValorTotal.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</td>
+      </tr>`;
   });
 }
 
-// ADICIONAR LANÇAMENTO
-function adicionar(){
-  if(!item.value || !valor.value) return;
-  const novo = { Tipo: tipo.value, Categoria: categoria.value, Item: item.value, Valor: valor.value, Evento: eventoAtivo };
-  dados.push({...novo, valor: parseNumber(valor.value)});
-  salvarOnline(novo);
-  atualizar();
-  item.value=''; valor.value='';
-}
-
 // GRÁFICOS
-function gerarVermelhos(q){ return Array.from({length:q},(_,i)=>`rgb(${220-i*120/q},60,60)`); }
-function desenharGraficos(receita,despesa,categorias){
+function gerarCores(q){ return Array.from({length:q},(_,i)=>`rgb(${220-i*120/q},60,60)`); }
+function desenharGraficos(receita, despesa, categorias){
   if(barChart) barChart.destroy();
   if(pieChart) pieChart.destroy();
-  barChart = new Chart(barChartEl,{ type:'bar', data:{ labels:['Receita','Despesa'], datasets:[{data:[receita,despesa]}] } });
-  pieChart = new Chart(pieChartEl,{ type:'pie', data:{ labels:Object.keys(categorias), datasets:[{data:Object.values(categorias),backgroundColor:gerarVermelhos(Object.keys(categorias).length)}] } });
+
+  barChart = new Chart(document.getElementById('barChart'),{
+    type:'bar',
+    data:{
+      labels:['Receita','Despesa'],
+      datasets:[{data:[receita,despesa],backgroundColor:['#2ecc71','#e74c3c']}]
+    }
+  });
+
+  pieChart = new Chart(document.getElementById('pieChart'),{
+    type:'pie',
+    data:{
+      labels:Object.keys(categorias),
+      datasets:[{data:Object.values(categorias),backgroundColor:gerarCores(Object.keys(categorias).length)}]
+    }
+  });
 }
 
-// EVENTOS DE ONLINE/OFFLINE
+// EVENTOS ONLINE/OFFLINE
 window.addEventListener('online', ()=>{ enviarPendentes(); carregarOnline(); });
 window.addEventListener('offline', ()=>{ console.log("Você está offline"); });
 
@@ -237,10 +212,13 @@ window.addEventListener('offline', ()=>{ console.log("Você está offline"); });
 pendentes = JSON.parse(localStorage.getItem('pendentes') || '[]');
 eventoAtivo = localStorage.getItem('eventoAtivo');
 if(eventoAtivo) eventoTopo.innerText = eventoAtivo;
+
 carregarOnline();
 
-// REGISTRAR SERVICE WORKER
-if ('serviceWorker' in navigator){ navigator.serviceWorker.register('service-worker.js'); }
+// SERVICE WORKER
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('service-worker.js');
+}
 </script>
 
 </body>

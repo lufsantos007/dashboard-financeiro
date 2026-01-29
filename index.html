@@ -3,21 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <title>Dashboard Financeiro</title>
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#3498db">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#3498db">
+
+<link rel="manifest" href="manifest.json">
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-<script>
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('service-worker.js');
-}
-</script>
-
-
 body{margin:0;font-family:Arial;background:#f2f2f2}
 .container{max-width:1200px;margin:auto;padding:15px}
 h1{text-align:center}
@@ -30,18 +24,8 @@ input,select,button{
   border:1px solid #ccc;
 }
 
-.btn-add{
-  background:#3498db;
-  color:#fff;
-  border:none;
-  font-weight:bold;
-}
-
-.btn-remove{
-  background:#e74c3c;
-  color:#fff;
-  border:none;
-}
+.btn-add{background:#3498db;color:#fff;border:none;font-weight:bold}
+.btn-remove{background:#e74c3c;color:#fff;border:none}
 
 .cards{display:flex;flex-direction:column;gap:10px}
 .card{background:#fff;padding:15px;border-radius:10px;text-align:center}
@@ -120,7 +104,6 @@ th,td{border-bottom:1px solid #ddd;padding:8px;text-align:center}
 <tbody id="tabela"></tbody>
 </table>
 </div>
-
 </div>
 
 <script>
@@ -132,8 +115,42 @@ const despesaEl = document.getElementById('despesa');
 const resultadoEl = document.getElementById('resultado');
 const tabelaEl = document.getElementById('tabela');
 
+const barChartEl = document.getElementById('barChart');
+const pieChartEl = document.getElementById('pieChart');
+
 function parseNumber(v){
   return parseFloat(String(v).replace(/\./g,'').replace(',','.')) || 0;
+}
+
+/* CSV */
+document.getElementById('file').addEventListener('change', function(e){
+  const reader = new FileReader();
+  reader.onload = ev => importarCSV(ev.target.result);
+  reader.readAsText(e.target.files[0], 'UTF-8');
+});
+
+function importarCSV(text){
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  const sep = lines.find(l=>l.includes(';'))?';':',';
+
+  const headerIndex = lines.findIndex(l => l.toLowerCase().includes('tipo'));
+  if(headerIndex === -1) return alert('Cabeçalho não encontrado');
+
+  const headers = lines[headerIndex].split(sep).map(h=>h.trim());
+
+  dados = lines.slice(headerIndex+1).map(l=>{
+    const c = l.split(sep);
+    let o={};
+    headers.forEach((h,i)=>o[h]=c[i]);
+    return {
+      Tipo:o.Tipo,
+      Categoria:o.Categoria,
+      Item:o.Item,
+      valor:parseNumber(o['Valor Total']||o.Valor)
+    };
+  }).filter(d=>d.Tipo && d.valor>0);
+
+  atualizar();
 }
 
 function atualizar(){
@@ -147,16 +164,12 @@ function atualizar(){
     }
   });
 
-  const saldo = receita-despesa;
-
   receitaEl.innerText = receita.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
   despesaEl.innerText = despesa.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-  resultadoEl.innerText = saldo.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-  resultadoEl.style.color = saldo>=0 ? '#2ecc71' : '#e74c3c';
+  resultadoEl.innerText = (receita-despesa).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 
   montarTabela();
   desenharGraficos(receita,despesa,categorias);
-  localStorage.setItem('financeiro_evento',JSON.stringify(dados));
 }
 
 function montarTabela(){
@@ -167,33 +180,9 @@ function montarTabela(){
       <td>${d.Categoria}</td>
       <td>${d.Item}</td>
       <td>${d.valor.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</td>
-      <td><button class="btn-remove" onclick="remover(${i})">Remover</button></td>
+      <td><button class="btn-remove" onclick="dados.splice(${i},1);atualizar()">Remover</button></td>
     </tr>`;
   });
-}
-
-function adicionar(){
-  if(!item.value || !valor.value) return;
-
-  dados.push({
-    Tipo: tipo.value,
-    Categoria: categoria.value,
-    Item: item.value,
-    valor: parseNumber(valor.value)
-  });
-
-  item.value='';
-  valor.value='';
-  atualizar();
-}
-
-function remover(i){
-  dados.splice(i,1);
-  atualizar();
-}
-
-function gerarVermelhos(q){
-  return Array.from({length:q},(_,i)=>`rgb(${220-i*120/q},60,60)`);
 }
 
 function desenharGraficos(receita,despesa,categorias){
@@ -202,38 +191,19 @@ function desenharGraficos(receita,despesa,categorias){
 
   barChart = new Chart(barChartEl,{
     type:'bar',
-    data:{
-      labels:['Receita','Despesa'],
-      datasets:[{
-        data:[receita,despesa],
-        backgroundColor:['#2ecc71','#e74c3c']
-      }]
-    }
+    data:{labels:['Receita','Despesa'],datasets:[{data:[receita,despesa]}]}
   });
 
   pieChart = new Chart(pieChartEl,{
     type:'pie',
-    data:{
-      labels:Object.keys(categorias),
-      datasets:[{
-        data:Object.values(categorias),
-        backgroundColor:gerarVermelhos(Object.keys(categorias).length)
-      }]
-    }
+    data:{labels:Object.keys(categorias),datasets:[{data:Object.values(categorias)}]}
   });
 }
 
-const barChartEl=document.getElementById('barChart');
-const pieChartEl=document.getElementById('pieChart');
-
-(function(){
-  const s = localStorage.getItem('financeiro_evento');
-  if(s){
-    dados = JSON.parse(s);
-    atualizar();
-  }
-})();
+/* Service Worker */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('service-worker.js');
+}
 </script>
 </body>
 </html>
-

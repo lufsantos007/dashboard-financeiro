@@ -126,6 +126,18 @@ const tabelaEl = document.getElementById('tabela');
 function parseNumber(v){
 
 <script>
+let dados = [];
+let barChart, pieChart;
+
+const receitaEl = document.getElementById('receita');
+const despesaEl = document.getElementById('despesa');
+const resultadoEl = document.getElementById('resultado');
+const tabelaEl = document.getElementById('tabela');
+
+const barChartEl = document.getElementById('barChart');
+const pieChartEl = document.getElementById('pieChart');
+
+/* ========= CSV ========= */
 document.getElementById('file').addEventListener('change', function(e){
   const reader = new FileReader();
   reader.onload = ev => importarCSV(ev.target.result);
@@ -139,13 +151,12 @@ function importarCSV(text){
     lines.find(l => l.includes('\t')) ? '\t' :
     lines.find(l => l.includes(';')) ? ';' : ',';
 
-  // encontra linha do cabeçalho
   const headerIndex = lines.findIndex(l =>
     l.toLowerCase().includes('tipo')
   );
 
   if(headerIndex === -1){
-    alert('Não encontrei a linha de cabeçalho da planilha');
+    alert('Não encontrei o cabeçalho (Tipo, Categoria, Item, Valor)');
     return;
   }
 
@@ -160,14 +171,89 @@ function importarCSV(text){
       Tipo: (o.Tipo || '').trim(),
       Categoria: (o.Categoria || '').trim(),
       Item: (o.Item || '').trim(),
-      valor: parseNumber(o['Valor Total'])
+      valor: parseNumber(o['Valor Total'] || o.Valor)
     };
   }).filter(d => d.Tipo && d.valor > 0);
 
   atualizar();
 }
-</script>
 
+/* ========= FUNÇÕES ========= */
+function parseNumber(v){
+  return parseFloat(String(v).replace(/\./g,'').replace(',','.')) || 0;
+}
+
+function atualizar(){
+  let receita=0, despesa=0, categorias={};
+
+  dados.forEach(d=>{
+    if(d.Tipo==='Receita') receita+=d.valor;
+    if(d.Tipo==='Despesa'){
+      despesa+=d.valor;
+      categorias[d.Categoria]=(categorias[d.Categoria]||0)+d.valor;
+    }
+  });
+
+  const saldo = receita-despesa;
+
+  receitaEl.innerText = receita.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+  despesaEl.innerText = despesa.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+  resultadoEl.innerText = saldo.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+  resultadoEl.style.color = saldo>=0 ? '#2ecc71' : '#e74c3c';
+
+  montarTabela();
+  desenharGraficos(receita,despesa,categorias);
+}
+
+function montarTabela(){
+  tabelaEl.innerHTML='';
+  dados.forEach((d,i)=>{
+    tabelaEl.innerHTML+=`
+    <tr>
+      <td>${d.Categoria}</td>
+      <td>${d.Item}</td>
+      <td>${d.valor.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</td>
+      <td><button class="btn-remove" onclick="remover(${i})">Remover</button></td>
+    </tr>`;
+  });
+}
+
+function remover(i){
+  dados.splice(i,1);
+  atualizar();
+}
+
+function gerarVermelhos(q){
+  return Array.from({length:q},(_,i)=>`rgb(${220-i*120/q},60,60)`);
+}
+
+function desenharGraficos(receita,despesa,categorias){
+  if(barChart) barChart.destroy();
+  if(pieChart) pieChart.destroy();
+
+  barChart = new Chart(barChartEl,{
+    type:'bar',
+    data:{
+      labels:['Receita','Despesa'],
+      datasets:[{
+        data:[receita,despesa],
+        backgroundColor:['#2ecc71','#e74c3c']
+      }]
+    }
+  });
+
+  pieChart = new Chart(pieChartEl,{
+    type:'pie',
+    data:{
+      labels:Object.keys(categorias),
+      datasets:[{
+        data:Object.values(categorias),
+        backgroundColor:gerarVermelhos(Object.keys(categorias).length)
+      }]
+    }
+  });
+}
+</script>
 
   
   return parseFloat(String(v).replace(/\./g,'').replace(',','.')) || 0;
@@ -273,5 +359,6 @@ const pieChartEl=document.getElementById('pieChart');
 </script>
 </body>
 </html>
+
 
 

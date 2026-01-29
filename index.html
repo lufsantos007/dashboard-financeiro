@@ -15,17 +15,6 @@ body{margin:0;font-family:Arial;background:#f2f2f2}
 .container{max-width:1200px;margin:auto;padding:15px}
 h1{text-align:center}
 
-<div class="form-box">
-  <h3>📅 Evento</h3>
-  <input id="eventoNome" placeholder="Nome do evento">
-  <input id="eventoData" type="date">
-  <button class="btn-add" onclick="definirEvento()">Definir evento</button>
-
-  <p id="eventoAtual" style="margin-top:10px;font-weight:bold"></p>
-</div>
-
-
-  
 input,select,button{
   width:100%;
   margin:5px 0;
@@ -49,13 +38,23 @@ input,select,button{
 table{width:100%;border-collapse:collapse}
 th,td{border-bottom:1px solid #ddd;padding:8px;text-align:center}
 
-@media(min-width:768px){.cards{flex-direction:row}}
+@media(min-width:768px){
+  .cards{flex-direction:row}
+}
 </style>
 </head>
 
 <body>
 <div class="container">
 <h1>📊 Dashboard Financeiro</h1>
+
+<div class="form-box">
+  <h3>📅 Evento</h3>
+  <input id="eventoNome" placeholder="Nome do evento">
+  <input id="eventoData" type="date">
+  <button class="btn-add" onclick="definirEvento()">Definir evento</button>
+  <p id="eventoAtual" style="margin-top:10px;font-weight:bold"></p>
+</div>
 
 <div class="cards">
   <div class="card"><h3>Receitas</h3><p id="receita">R$ 0,00</p></div>
@@ -70,12 +69,10 @@ th,td{border-bottom:1px solid #ddd;padding:8px;text-align:center}
 
 <div class="form-box">
 <h3>➕ Novo Lançamento</h3>
-
 <select id="tipo">
   <option value="Receita">Receita</option>
   <option value="Despesa">Despesa</option>
 </select>
-
 <select id="categoria">
   <option>Inscrições</option>
   <option>Patrocínio</option>
@@ -86,10 +83,8 @@ th,td{border-bottom:1px solid #ddd;padding:8px;text-align:center}
   <option>Despesa Fixa</option>
   <option>Despesas Diversas</option>
 </select>
-
 <input id="item" placeholder="Item">
 <input id="valor" type="number" placeholder="Valor">
-
 <button class="btn-add" onclick="adicionar()">Adicionar</button>
 </div>
 
@@ -114,46 +109,31 @@ const API_URL = "https://script.google.com/macros/s/AKfycbzgc5hJXXqAvgZfcHMdAiHX
 
 let dados = [];
 let barChart, pieChart;
+let eventoAtivo = null;
 
 const receitaEl = document.getElementById('receita');
 const despesaEl = document.getElementById('despesa');
 const resultadoEl = document.getElementById('resultado');
 const tabelaEl = document.getElementById('tabela');
-
 const barChartEl = document.getElementById('barChart');
 const pieChartEl = document.getElementById('pieChart');
+const tipo = document.getElementById('tipo');
+const categoria = document.getElementById('categoria');
+const item = document.getElementById('item');
+const valor = document.getElementById('valor');
 
-function parseNumber(v){
-  return parseFloat(String(v).replace(/\./g,'').replace(',','.')) || 0;
-}
-
-
-<script>
-let eventoAtivo = null;
+function parseNumber(v){ return parseFloat(String(v).replace(/\./g,'').replace(',','.')) || 0; }
 
 function definirEvento(){
   const nome = document.getElementById('eventoNome').value;
   const data = document.getElementById('eventoData').value;
-
-  if(!nome || !data){
-    alert('Informe nome e data do evento');
-    return;
-  }
-
+  if(!nome || !data){ alert('Informe nome e data do evento'); return; }
   eventoAtivo = `${nome} (${data})`;
   localStorage.setItem('eventoAtivo', eventoAtivo);
-
-  document.getElementById('eventoAtual').innerText =
-    'Evento ativo: ' + eventoAtivo;
-
+  document.getElementById('eventoAtual').innerText = 'Evento ativo: ' + eventoAtivo;
   atualizar();
 }
-</script>
 
-
-
-  
-/* 🔹 CARREGAR DADOS ONLINE */
 async function carregarOnline(){
   const r = await fetch(API_URL);
   dados = await r.json();
@@ -161,58 +141,33 @@ async function carregarOnline(){
   atualizar();
 }
 
-/* 🔹 SALVAR ONLINE */
 async function salvarOnline(registro){
-  await fetch(API_URL,{
-    method:'POST',
-    body: JSON.stringify(registro)
-  });
+  await fetch(API_URL,{ method:'POST', body: JSON.stringify(registro) });
 }
 
 function atualizar(){
   if(!eventoAtivo){
-    document.getElementById('eventoAtual').innerText =
-      'Nenhum evento selecionado';
+    document.getElementById('eventoAtual').innerText = 'Nenhum evento selecionado';
     return;
   }
-
   let receita=0, despesa=0, categorias={};
-
   const filtrados = dados.filter(d => d.Evento === eventoAtivo);
-
   filtrados.forEach(d=>{
     if(d.Tipo==='Receita') receita+=d.valor;
-    if(d.Tipo==='Despesa'){
-      despesa+=d.valor;
-      categorias[d.Categoria]=(categorias[d.Categoria]||0)+d.valor;
-    }
+    if(d.Tipo==='Despesa'){ despesa+=d.valor; categorias[d.Categoria]=(categorias[d.Categoria]||0)+d.valor; }
   });
-
   const saldo = receita-despesa;
-
   receitaEl.innerText = receita.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
   despesaEl.innerText = despesa.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
   resultadoEl.innerText = saldo.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
   resultadoEl.style.color = saldo>=0 ? '#2ecc71' : '#e74c3c';
-
   montarTabela(filtrados);
   desenharGraficos(receita,despesa,categorias);
 }
 
-
-  const saldo = receita-despesa;
-  receitaEl.innerText = receita.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-  despesaEl.innerText = despesa.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-  resultadoEl.innerText = saldo.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-  resultadoEl.style.color = saldo>=0 ? '#2ecc71' : '#e74c3c';
-
-  montarTabela();
-  desenharGraficos(receita,despesa,categorias);
-}
-
-function montarTabela(){
+function montarTabela(filtrados){
   tabelaEl.innerHTML='';
-  dados.forEach(d=>{
+  filtrados.forEach(d=>{
     tabelaEl.innerHTML+=`
     <tr>
       <td>${d.Categoria}</td>
@@ -225,54 +180,27 @@ function montarTabela(){
 
 function adicionar(){
   if(!item.value || !valor.value) return;
-
-  const novo = {
-    Tipo: tipo.value,
-    Categoria: categoria.value,
-    Item: item.value,
-    Valor: valor.value
-  };
-
+  const novo = { Tipo: tipo.value, Categoria: categoria.value, Item: item.value, Valor: valor.value, Evento: eventoAtivo };
   dados.push({...novo, valor: parseNumber(valor.value)});
   salvarOnline(novo);
   atualizar();
-
-  item.value='';
-  valor.value='';
+  item.value=''; valor.value='';
 }
 
-function gerarVermelhos(q){
-  return Array.from({length:q},(_,i)=>`rgb(${220-i*120/q},60,60)`);
-}
+function gerarVermelhos(q){ return Array.from({length:q},(_,i)=>`rgb(${220-i*120/q},60,60)`); }
 
 function desenharGraficos(receita,despesa,categorias){
   if(barChart) barChart.destroy();
   if(pieChart) pieChart.destroy();
-
-  barChart = new Chart(barChartEl,{
-    type:'bar',
-    data:{
-      labels:['Receita','Despesa'],
-      datasets:[{data:[receita,despesa]}]
-    }
-  });
-
-  pieChart = new Chart(pieChartEl,{
-    type:'pie',
-    data:{
-      labels:Object.keys(categorias),
-      datasets:[{data:Object.values(categorias),backgroundColor:gerarVermelhos(Object.keys(categorias).length)}]
-    }
-  });
+  barChart = new Chart(barChartEl,{ type:'bar', data:{ labels:['Receita','Despesa'], datasets:[{data:[receita,despesa]}] } });
+  pieChart = new Chart(pieChartEl,{ type:'pie', data:{ labels:Object.keys(categorias), datasets:[{data:Object.values(categorias),backgroundColor:gerarVermelhos(Object.keys(categorias).length)}] } });
 }
 
 /* INICIAR */
 carregarOnline();
 
 /* SERVICE WORKER */
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('service-worker.js');
-}
+if ('serviceWorker' in navigator) { navigator.serviceWorker.register('service-worker.js'); }
 </script>
 </body>
 </html>

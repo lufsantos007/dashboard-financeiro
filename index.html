@@ -87,14 +87,18 @@ let barChart, pieChart;
 let eventoAtivo = localStorage.getItem('eventoAtivo') || null;
 
 // Formata números da planilha (trata strings e pontos/vírgulas)
+
+// Substitua a função antiga por esta:
 function parseNumber(v) {
-    if (typeof v === 'number') return v;
     if (!v) return 0;
-    let res = String(v).replace(/\s/g, '').replace('R$', '');
-    if (res.includes(',') && res.includes('.')) res = res.replace(/\./g, '').replace(',', '.');
-    else res = res.replace(',', '.');
-    return parseFloat(res) || 0;
+    if (typeof v === 'number') return v;
+    
+    // Esta lógica limpa pontos de milhar e converte a vírgula para ponto
+    let limpo = String(v).replace(/\./g, '').replace(',', '.');
+    return parseFloat(limpo) || 0;
 }
+
+    
 
 function definirEvento() {
     const nome = document.getElementById('eventoNome').value.trim();
@@ -110,23 +114,23 @@ async function carregarDados() {
     try {
         status.innerText = "Sincronizando com Google Sheets...";
         const r = await fetch(`${API_URL}?nocache=${new Date().getTime()}`);
-        if (!r.ok) throw new Error();
-        
         const json = await r.json();
-        // Mapeia os dados garantindo que as chaves batam com a planilha
+        
+        // Aqui é onde dizemos ao código como ler a sua planilha específica
         dadosGlobal = json.map(d => ({
-            Evento: d.Evento || "",
-            Tipo: d.Tipo || "Despesa",
-            Categoria: d.Categoria || "Geral",
-            Item: d.Item || "S/N",
-            ValorTotal: parseNumber(d["Valor Total"] || d.ValorTotal || 0)
+            Evento: d["Evento"] || "",
+            Tipo: d["Tipo"] || "",
+            Categoria: d["Categoria"] || "Geral",
+            Item: d["Item"] || "S/N",
+            // IMPORTANTE: d["Valor Total"] deve ter o espaço igual à sua coluna H
+            ValorTotal: parseNumber(d["Valor Total"]) 
         }));
 
         localStorage.setItem('dadosOffline', JSON.stringify(dadosGlobal));
-        status.innerText = "Sincronizado via Nuvem";
+        status.innerText = "Sincronizado: " + dadosGlobal.length + " linhas";
         status.style.color = "#2ecc71";
     } catch (err) {
-        console.error("Erro ao buscar dados:", err);
+        console.error("Erro:", err);
         status.innerText = "Modo Offline (Dados Locais)";
         status.style.color = "#e67e22";
         const offline = localStorage.getItem('dadosOffline');
@@ -134,6 +138,7 @@ async function carregarDados() {
     }
     atualizarInterface();
 }
+
 
 function atualizarInterface() {
     if (!eventoAtivo) {
@@ -211,3 +216,4 @@ window.addEventListener('online', carregarDados);
 </script>
 </body>
 </html>  
+

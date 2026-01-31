@@ -75,7 +75,6 @@ const API_URL = "https://script.google.com/macros/s/AKfycbxQJ_0NInJ99dneHs5Lpcma
 let dados = [];
 let barChart, pieChart;
 
-// Função crucial para converter "28.000,00" em número real 28000.00
 function parseNumber(v) {
     if (!v) return 0;
     if (typeof v === 'number') return v;
@@ -90,22 +89,19 @@ async function carregarDados() {
         const json = await resposta.json();
 
         dados = json.map(d => ({
-            // Mapeando exatamente os nomes das colunas da sua lista
             Tipo: String(d.Tipo || "").toLowerCase(),
             Categoria: d.Categoria || "Outros",
             Item: d.Item || "S/N",
-            // Note que aqui usamos 'ValorTotal' grudado, conforme seu script limpa
             ValorTotal: parseNumber(d.ValorTotal) 
         }));
 
         status.innerText = "Sincronizado: " + dados.length + " registros";
         status.style.color = "#2ecc71";
     } catch (erro) {
+        console.error(erro);
         status.innerText = "Erro ao processar dados";
         status.style.color = "#e74c3c";
     }
-    atualizarDashboard();
-}
     atualizarDashboard();
 }
 
@@ -123,7 +119,6 @@ function atualizarDashboard() {
         }
     });
 
-    // Atualiza Textos
     document.getElementById("receita").innerText = receita.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
     document.getElementById("despesa").innerText = despesa.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
     
@@ -132,7 +127,6 @@ function atualizarDashboard() {
     saldoEl.innerText = saldo.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
     saldoEl.style.color = saldo >= 0 ? "var(--success)" : "var(--danger)";
 
-    // Atualiza Tabela
     document.getElementById("tabela").innerHTML = dados.map(d => `
         <tr>
             <td>${d.Categoria}</td>
@@ -182,4 +176,3 @@ window.onload = carregarDados;
 
 </body>
 </html>
-

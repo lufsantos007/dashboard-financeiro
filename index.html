@@ -13,15 +13,13 @@
         body, html { margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); }
         header { position: fixed; top: 0; left: 0; width: 100%; background: var(--primary); color: #fff; padding: 15px; text-align: center; font-size: 1.2em; font-weight: bold; box-shadow: 0 3px 6px rgba(0,0,0,0.2); z-index: 1000; }
         .container { max-width: 1200px; margin: auto; padding: 90px 15px 30px 15px; }
-        .cards { display: flex; overflow-x: auto; gap: 15px; padding: 10px 0; scrollbar-width: none; }
-        .card { flex: 1; min-width: 200px; background: #fff; padding: 20px; border-radius: 12px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: transform 0.2s; }
+        .cards { display: flex; overflow-x: auto; gap: 15px; padding: 10px 0; }
+        .card { flex: 1; min-width: 200px; background: #fff; padding: 20px; border-radius: 12px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         .card h3 { margin: 0 0 10px 0; color: #7f8c8d; font-size: 0.9em; text-transform: uppercase; }
         .card p { font-size: 24px; font-weight: bold; margin: 0; }
         .charts { display: grid; grid-template-columns: 1fr; gap: 20px; margin-top: 20px; }
         @media(min-width: 768px) { .charts { grid-template-columns: 1fr 1fr; } }
         .chart-box, .form-box, .table-box { background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        input, select, button { width: 100%; margin: 8px 0; padding: 12px; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; }
-        button.btn-add { background: var(--primary); color: #fff; border: none; font-weight: bold; cursor: pointer; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { border-bottom: 1px solid #eee; padding: 12px; text-align: left; }
         th { color: #7f8c8d; font-size: 0.85em; }
@@ -37,10 +35,11 @@
 </header>
 
 <div class="container">
+
     <div class="form-box">
         <h3>📅 Gestão de Evento</h3>
         <input id="eventoNome" placeholder="Digite o nome do evento (ex: Avaré)">
-        <button class="btn-add" onclick="definirEvento()">Acessar Dashboard</button>
+        <button onclick="definirEvento()">Acessar Dashboard</button>
     </div>
 
     <div class="cards">
@@ -50,14 +49,16 @@
     </div>
 
     <div class="charts">
-        <div class="chart-box"><h4>Fluxo de Caixa</h4><canvas id="barChart"></canvas></div>
-        <div class="chart-box"><h4>Despesas por Categoria</h4><canvas id="pieChart"></canvas></div>
+        <div class="chart-box"><canvas id="barChart"></canvas></div>
+        <div class="chart-box"><canvas id="pieChart"></canvas></div>
     </div>
 
     <div class="table-box">
-        <h3>📋 Movimentações Recentes</h3>
+        <h3>📋 Movimentações</h3>
         <table>
-            <thead><tr><th>Categoria</th><th>Item</th><th>Valor</th></tr></thead>
+            <thead>
+                <tr><th>Categoria</th><th>Item</th><th>Valor</th></tr>
+            </thead>
             <tbody id="tabela"></tbody>
         </table>
     </div>
@@ -67,23 +68,22 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbxQJ_0NInJ99dneHs5Lpcma4RgbpCH-mHy-1oPtuo8qVYfmGFd_DadVse7guNibdxTV/exec";
 
 let dadosGlobal = [];
-let barChart, pieChart;
 let eventoAtivo = localStorage.getItem('eventoAtivo') || null;
+let barChart, pieChart;
 
 function parseNumber(v) {
     if (!v) return 0;
     if (typeof v === 'number') return v;
-    let limpo = String(v).replace(/\./g, '').replace(',', '.');
-    return parseFloat(limpo) || 0;
+    return parseFloat(String(v).replace(/\./g, '').replace(',', '.')) || 0;
 }
 
-function normalizarTexto(str) {
-    return String(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+function normalizarTexto(t) {
+    return String(t).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 }
 
 function definirEvento() {
     const nome = document.getElementById('eventoNome').value.trim();
-    if (!nome) return alert("Por favor, digite o nome do evento.");
+    if (!nome) return alert("Digite o nome do evento");
     eventoAtivo = nome;
     localStorage.setItem('eventoAtivo', eventoAtivo);
     atualizarInterface();
@@ -92,104 +92,83 @@ function definirEvento() {
 async function carregarDados() {
     const status = document.getElementById('statusConexao');
     try {
-        status.innerText = "Sincronizando com Google Sheets...";
-        const r = await fetch(`${API_URL}?nocache=${new Date().getTime()}`);
+        const r = await fetch(API_URL + "?nocache=" + Date.now());
         const json = await r.json();
-        
+
         dadosGlobal = json.map(d => ({
             Evento: d["Evento"] || "",
             Tipo: d["Tipo"] || "",
             Categoria: d["Categoria"] || "Geral",
-            Item: d["Item"] || "S/N",
-            ValorTotal: parseNumber(d["Valor Total"]) 
+            Item: d["Item"] || "",
+            ValorTotal: parseNumber(d["ValorTotal"])
         }));
 
-        localStorage.setItem('dadosOffline', JSON.stringify(dadosGlobal));
         status.innerText = "Sincronizado: " + dadosGlobal.length + " linhas";
         status.style.color = "#2ecc71";
-    } catch (err) {
-        console.error("Erro:", err);
-        status.innerText = "Modo Offline (Usando dados locais)";
-        status.style.color = "#e67e22";
-        const offline = localStorage.getItem('dadosOffline');
-        dadosGlobal = offline ? JSON.parse(offline) : [];
+    } catch {
+        status.innerText = "Erro ao sincronizar";
+        status.style.color = "#e74c3c";
     }
     atualizarInterface();
 }
 
 function atualizarInterface() {
-    if (!eventoAtivo) {
-        document.getElementById('eventoTopo').innerText = "Selecione um Evento";
-        return;
-    }
+    if (!eventoAtivo) return;
 
     document.getElementById('eventoTopo').innerText = eventoAtivo;
-    const busca = normalizarTexto(eventoAtivo);
-    const filtrados = dadosGlobal.filter(d => normalizarTexto(d.Evento) === busca);
 
-    let rec = 0, des = 0, cats = {};
+    const busca = normalizarTexto(eventoAtivo);
+    const filtrados = dadosGlobal.filter(d =>
+        normalizarTexto(d.Evento).includes(busca)
+    );
+
+    let receita = 0, despesa = 0, cats = {};
 
     filtrados.forEach(d => {
-        const valor = d.ValorTotal || 0;
-        if (d.Tipo === "Receita") {
-            rec += valor;
+        if (normalizarTexto(d.Tipo) === "receita") {
+            receita += d.ValorTotal;
         } else {
-            des += valor;
-            const cat = d.Categoria || "Geral";
-            cats[cat] = (cats[cat] || 0) + valor;
+            despesa += d.ValorTotal;
+            cats[d.Categoria] = (cats[d.Categoria] || 0) + d.ValorTotal;
         }
     });
 
-    document.getElementById('receita').innerText = rec.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    document.getElementById('despesa').innerText = des.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    const saldo = rec - des;
-    const resEl = document.getElementById('resultado');
-    resEl.innerText = saldo.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    resEl.style.color = saldo >= 0 ? 'var(--success)' : 'var(--danger)';
+    document.getElementById('receita').innerText = receita.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+    document.getElementById('despesa').innerText = despesa.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 
-    const tabela = document.getElementById('tabela');
-    if (filtrados.length > 0) {
-        tabela.innerHTML = filtrados.map(d => `
+    const saldo = receita - despesa;
+    const r = document.getElementById('resultado');
+    r.innerText = saldo.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+    r.style.color = saldo >= 0 ? 'var(--success)' : 'var(--danger)';
+
+    document.getElementById('tabela').innerHTML =
+        filtrados.map(d => `
             <tr>
                 <td>${d.Categoria}</td>
                 <td>${d.Item}</td>
-                <td>${d.ValorTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                <td>${d.ValorTotal.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</td>
             </tr>
         `).join('');
-    } else {
-        tabela.innerHTML = '<tr><td colspan="3">Nenhum dado encontrado para este evento.</td></tr>';
-    }
 
-    renderizarGraficos(rec, des, cats);
+    renderizarGraficos(receita, despesa, cats);
 }
 
 function renderizarGraficos(rec, des, cats) {
     if (barChart) barChart.destroy();
     if (pieChart) pieChart.destroy();
 
-    const ctxBar = document.getElementById('barChart').getContext('2d');
-    barChart = new Chart(ctxBar, {
+    barChart = new Chart(barChart = document.getElementById('barChart'), {
         type: 'bar',
-        data: {
-            labels: ['Receitas', 'Despesas'],
-            datasets: [{ data: [rec, des], backgroundColor: ['#2ecc71', '#e74c3c'] }]
-        },
-        options: { plugins: { legend: { display: false } }, responsive: true }
+        data: { labels:['Receitas','Despesas'], datasets:[{data:[rec,des]}] }
     });
 
-    const ctxPie = document.getElementById('pieChart').getContext('2d');
-    pieChart = new Chart(ctxPie, {
+    pieChart = new Chart(document.getElementById('pieChart'), {
         type: 'doughnut',
-        data: {
-            labels: Object.keys(cats),
-            datasets: [{ data: Object.values(cats), backgroundColor: ['#3498db', '#9b59b6', '#f1c40f', '#e67e22', '#1abc9c'] }]
-        },
-        options: { responsive: true }
+        data: { labels:Object.keys(cats), datasets:[{data:Object.values(cats)}] }
     });
 }
 
 window.onload = carregarDados;
-window.addEventListener('online', carregarDados);
 </script>
 </body>
 </html>

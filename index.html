@@ -140,6 +140,19 @@ async function carregarDados() {
 }
 
 
+
+
+
+
+    // Função para remover acentos e deixar em minúsculo (ajuda na busca)
+function normalizarTexto(str) {
+    return String(str)
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim();
+}
+
 function atualizarInterface() {
     if (!eventoAtivo) {
         document.getElementById('eventoTopo').innerText = "Selecione um Evento";
@@ -147,18 +160,56 @@ function atualizarInterface() {
     }
 
     document.getElementById('eventoTopo').innerText = eventoAtivo;
-    const filtrados = dadosGlobal.filter(d => String(d.Evento).toLowerCase() === eventoAtivo.toLowerCase());
+    
+    // Normaliza o termo que o usuário digitou
+    const busca = normalizarTexto(eventoAtivo);
 
+    // Filtra os dados ignorando acentos e maiúsculas
+    const filtrados = dadosGlobal.filter(d => {
+        return normalizarTexto(d.Evento) === busca;
+    });
+
+    // Se encontrou dados, vamos processar
     let rec = 0, des = 0, cats = {};
 
     filtrados.forEach(d => {
-        if (d.Tipo === "Receita") rec += d.ValorTotal;
-        else {
-            des += d.ValorTotal;
-            cats[d.Categoria] = (cats[d.Categoria] || 0) + d.ValorTotal;
+        const valor = d.ValorTotal || 0;
+        if (d.Tipo === "Receita") {
+            rec += valor;
+        } else {
+            des += valor;
+            // Agrupa por categoria para o gráfico de pizza
+            const cat = d.Categoria || "Geral";
+            cats[cat] = (cats[cat] || 0) + valor;
         }
     });
 
+    // 1. Atualiza os Cards de resumo
+    document.getElementById('receita').innerText = rec.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    document.getElementById('despesa').innerText = des.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    
+    const saldo = rec - des;
+    const resEl = document.getElementById('resultado');
+    resEl.innerText = saldo.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    resEl.style.color = saldo >= 0 ? 'var(--success)' : 'var(--danger)';
+
+    // 2. Atualiza a Tabela de movimentações
+    const tabela = document.getElementById('tabela');
+    if (filtrados.length > 0) {
+        tabela.innerHTML = filtrados.map(d => `
+            <tr>
+                <td>${d.Categoria}</td>
+                <td>${d.Item}</td>
+                <td>${d.ValorTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+            </tr>
+        `).join('');
+    } else {
+        tabela.innerHTML = '<tr><td colspan="3">Nenhum dado encontrado para este evento.</td></tr>';
+    }
+
+    // 3. Desenha os Gráficos
+    renderizarGraficos(rec, des, cats);
+}
     // Atualiza Cards
     document.getElementById('receita').innerText = rec.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     document.getElementById('despesa').innerText = des.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -216,5 +267,6 @@ window.addEventListener('online', carregarDados);
 </script>
 </body>
 </html>  
+
 
 

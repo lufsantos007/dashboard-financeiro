@@ -1,228 +1,213 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<title>Dashboard Financeiro</title>
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#3498db">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <meta charset="UTF-8">
+    <title>Dashboard Financeiro Pro</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#3498db">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<style>
-body,html{margin:0;padding:0;font-family:Arial, sans-serif;background:#f0f2f5;}
-header{position:fixed;top:0;left:0;width:100%;background:#3498db;color:#fff;padding:15px;text-align:center;font-size:1.2em;font-weight:bold;box-shadow:0 3px 6px rgba(0,0,0,0.2);z-index:1000;}
-.container{max-width:1200px;margin:auto;padding:90px 15px 15px 15px;}
-.cards{display:flex;overflow-x:auto;gap:10px;padding:10px 0;}
-.card{flex:0 0 200px;background:#fff;padding:20px;border-radius:12px;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,0.15);transition:transform 0.2s;}
-.card:hover{transform:scale(1.05);}
-.card h3{margin-bottom:10px;}
-.card p{font-size:22px;font-weight:bold;}
-.charts{display:flex;flex-direction:column;gap:20px;margin-top:20px;}
-.chart-box{background:#fff;padding:15px;border-radius:12px;box-shadow:0 2px 6px rgba(0,0,0,0.15);}
-.form-box{background:#fff;padding:15px;border-radius:12px;margin-top:20px;box-shadow:0 2px 6px rgba(0,0,0,0.15);}
-.form-box h3{margin-bottom:10px;}
-input,select,button{width:100%;margin:5px 0;padding:12px;border-radius:8px;border:1px solid #ccc;font-size:1em;}
-button.btn-add{background:#3498db;color:#fff;border:none;font-weight:bold;font-size:1em;}
-.table-box{background:#fff;padding:15px;border-radius:12px;margin-top:20px;overflow-x:auto;box-shadow:0 2px 6px rgba(0,0,0,0.15);}
-table{width:100%;border-collapse:collapse;}
-th,td{border-bottom:1px solid #ddd;padding:8px;text-align:center;font-size:0.9em;}
-@media(min-width:768px){.cards{flex-wrap:wrap;}.card{flex:1;}}
-</style>
+    <style>
+        :root { --primary: #3498db; --success: #2ecc71; --danger: #e74c3c; --bg: #f0f2f5; }
+        body, html { margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); }
+        header { position: fixed; top: 0; left: 0; width: 100%; background: var(--primary); color: #fff; padding: 15px; text-align: center; font-size: 1.2em; font-weight: bold; box-shadow: 0 3px 6px rgba(0,0,0,0.2); z-index: 1000; }
+        .container { max-width: 1200px; margin: auto; padding: 90px 15px 30px 15px; }
+        
+        /* Cards Estilizados */
+        .cards { display: flex; overflow-x: auto; gap: 15px; padding: 10px 0; scrollbar-width: none; }
+        .card { flex: 1; min-width: 200px; background: #fff; padding: 20px; border-radius: 12px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: transform 0.2s; }
+        .card h3 { margin: 0 0 10px 0; color: #7f8c8d; font-size: 0.9em; text-transform: uppercase; }
+        .card p { font-size: 24px; font-weight: bold; margin: 0; }
+        
+        .charts { display: grid; grid-template-columns: 1fr; gap: 20px; margin-top: 20px; }
+        @media(min-width: 768px) { .charts { grid-template-columns: 1fr 1fr; } }
+        
+        .chart-box, .form-box, .table-box { background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        input, select, button { width: 100%; margin: 8px 0; padding: 12px; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; }
+        button.btn-add { background: var(--primary); color: #fff; border: none; font-weight: bold; cursor: pointer; }
+        button.btn-add:active { transform: translateY(2px); }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border-bottom: 1px solid #eee; padding: 12px; text-align: left; }
+        th { color: #7f8c8d; font-size: 0.85em; }
+        .status-online { font-size: 0.7em; display: block; color: #bdc3c7; }
+    </style>
 </head>
 
 <body>
 
 <header>
-  <span id="eventoTopo">Nenhum evento selecionado</span>
+    <span id="eventoTopo">Carregando...</span>
+    <small id="statusConexao" class="status-online">Verificando conexão...</small>
 </header>
 
 <div class="container">
 
-  <!-- FORMULÁRIO DE EVENTO -->
-  <div class="form-box">
-    <h3>📅 Selecionar Evento</h3>
-    <input id="eventoNome" placeholder="Digite o nome do evento">
-    <button class="btn-add" onclick="definirEvento()">Selecionar Evento</button>
-  </div>
+    <div class="form-box">
+        <h3>📅 Gestão de Evento</h3>
+        <input id="eventoNome" placeholder="Nome do Evento (ex: Casamento João e Maria)">
+        <button class="btn-add" onclick="definirEvento()">Acessar Dashboard</button>
+    </div>
 
-  <!-- CARDS -->
-  <div class="cards">
-    <div class="card" id="cardReceita"><h3>Receitas</h3><p id="receita">R$ 0,00</p></div>
-    <div class="card" id="cardDespesa"><h3>Despesas</h3><p id="despesa">R$ 0,00</p></div>
-    <div class="card" id="cardResultado"><h3>Resultado</h3><p id="resultado">R$ 0,00</p></div>
-  </div>
+    <div class="cards">
+        <div class="card"><h3>Receitas</h3><p id="receita" style="color:var(--success)">R$ 0,00</p></div>
+        <div class="card"><h3>Despesas</h3><p id="despesa" style="color:var(--danger)">R$ 0,00</p></div>
+        <div class="card"><h3>Saldo</h3><p id="resultado">R$ 0,00</p></div>
+    </div>
 
-  <!-- GRÁFICOS -->
-  <div class="charts">
-    <div class="chart-box"><canvas id="barChart"></canvas></div>
-    <div class="chart-box"><canvas id="pieChart"></canvas></div>
-  </div>
+    <div class="charts">
+        <div class="chart-box">
+            <h4>Fluxo de Caixa</h4>
+            <canvas id="barChart"></canvas>
+        </div>
+        <div class="chart-box">
+            <h4>Despesas por Categoria</h4>
+            <canvas id="pieChart"></canvas>
+        </div>
+    </div>
 
-  <!-- TABELA DETALHADA -->
-  <div class="table-box">
-    <h3>📋 Detalhamento</h3>
-    <table>
-      <thead>
-        <tr><th>Categoria</th><th>Item</th><th>Valor</th></tr>
-      </thead>
-      <tbody id="tabela"></tbody>
-    </table>
-  </div>
-
+    <div class="table-box">
+        <h3>📋 Movimentações Recentes</h3>
+        <table>
+            <thead>
+                <tr><th>Categoria</th><th>Item</th><th>Valor</th></tr>
+            </thead>
+            <tbody id="tabela"></tbody>
+        </table>
+    </div>
 </div>
 
 <script>
-const API_URL = https://script.google.com/macros/s/AKfycbxQJ_0NInJ99dneHs5Lpcma4RgbpCH-mHy-1oPtuo8qVYfmGFd_DadVse7guNibdxTV/exec
-  
-let dados = [];
-let pendentes = [];
+// URL corrigida com aspas
+const API_URL = "https://script.google.com/macros/s/AKfycbxQJ_0NInJ99dneHs5Lpcma4RgbpCH-mHy-1oPtuo8qVYfmGFd_DadVse7guNibdxTV/exec";
+
+let dadosGlobal = [];
 let barChart, pieChart;
-let eventoAtivo = null;
+let eventoAtivo = localStorage.getItem('eventoAtivo') || null;
 
-const receitaEl = document.getElementById('receita');
-const despesaEl = document.getElementById('despesa');
-const resultadoEl = document.getElementById('resultado');
-const tabelaEl = document.getElementById('tabela');
-const eventoTopo = document.getElementById('eventoTopo');
-const eventoNome = document.getElementById('eventoNome');
-
-function parseNumber(v){
-  if(!v) return 0;
-  return parseFloat(String(v).replace(/\./g,'').replace(',','.')) || 0;
+// Formata números da planilha (trata strings e pontos/vírgulas)
+function parseNumber(v) {
+    if (typeof v === 'number') return v;
+    if (!v) return 0;
+    let res = String(v).replace(/\s/g, '').replace('R$', '');
+    if (res.includes(',') && res.includes('.')) res = res.replace(/\./g, '').replace(',', '.');
+    else res = res.replace(',', '.');
+    return parseFloat(res) || 0;
 }
 
-function definirEvento(){
-  const nome = eventoNome.value.trim();
-  if(!nome){ alert("Digite o nome do evento"); return; }
-  eventoAtivo = nome;
-  localStorage.setItem('eventoAtivo', eventoAtivo);
-  eventoTopo.innerText = eventoAtivo;
-  atualizar();
-  enviarPendentes();
+function definirEvento() {
+    const nome = document.getElementById('eventoNome').value.trim();
+    if (!nome) return alert("Por favor, digite o nome do evento.");
+    eventoAtivo = nome;
+    localStorage.setItem('eventoAtivo', eventoAtivo);
+    document.getElementById('eventoTopo').innerText = eventoAtivo;
+    atualizarInterface();
 }
 
-// CARREGAR DADOS ONLINE
-async function carregarOnline() {
-  try {
-    const r = await fetch(API_URL);
-    const json = await r.json();
-
-    dados = json.map(d => ({
-      Evento: d.Evento,
-      Tipo: d.Tipo,
-      Categoria: d.Categoria || "Sem Categoria",
-      Item: d.Item || "Sem Item",
-      ValorTotal: parseNumber(d["Valor Total"])
-    }));
-
-    localStorage.setItem('dadosOffline', JSON.stringify(dados));
-  } catch(err){
-    console.log("Offline, usando dados locais");
-    const offline = localStorage.getItem('dadosOffline');
-    dados = offline ? JSON.parse(offline) : [];
-  }
-
-  atualizar();
-}
-
-// ENVIAR LANÇAMENTOS PENDENTES
-async function enviarPendentes(){
-  if(!navigator.onLine) return;
-  const pend = JSON.parse(localStorage.getItem('pendentes') || '[]');
-  for(const p of pend){
+async function carregarDados() {
+    const status = document.getElementById('statusConexao');
     try {
-      await fetch(API_URL,{method:'POST',body: JSON.stringify(p)});
-    } catch(e){
-      console.log("Offline, não foi possível enviar pendentes");
-      return;
+        status.innerText = "Sincronizando com Google Sheets...";
+        const r = await fetch(`${API_URL}?nocache=${new Date().getTime()}`);
+        if (!r.ok) throw new Error();
+        
+        const json = await r.json();
+        // Mapeia os dados garantindo que as chaves batam com a planilha
+        dadosGlobal = json.map(d => ({
+            Evento: d.Evento || "",
+            Tipo: d.Tipo || "Despesa",
+            Categoria: d.Categoria || "Geral",
+            Item: d.Item || "S/N",
+            ValorTotal: parseNumber(d["Valor Total"] || d.ValorTotal || 0)
+        }));
+
+        localStorage.setItem('dadosOffline', JSON.stringify(dadosGlobal));
+        status.innerText = "Sincronizado via Nuvem";
+        status.style.color = "#2ecc71";
+    } catch (err) {
+        console.error("Erro ao buscar dados:", err);
+        status.innerText = "Modo Offline (Dados Locais)";
+        status.style.color = "#e67e22";
+        const offline = localStorage.getItem('dadosOffline');
+        dadosGlobal = offline ? JSON.parse(offline) : [];
     }
-  }
-  localStorage.setItem('pendentes','[]');
-  pendentes = [];
-  carregarOnline();
+    atualizarInterface();
 }
 
-function atualizar(){
-  if(!eventoAtivo){ eventoTopo.innerText='Nenhum evento selecionado'; return; }
-
-  const filtrados = dados.filter(d => d.Evento === eventoAtivo);
-
-  let receita=0, despesa=0, categorias={};
-
-  filtrados.forEach(d=>{
-    if(d.Tipo === "Receita") receita += d.ValorTotal;
-    if(d.Tipo === "Despesa"){
-      despesa += d.ValorTotal;
-      categorias[d.Categoria] = (categorias[d.Categoria] || 0) + d.ValorTotal;
+function atualizarInterface() {
+    if (!eventoAtivo) {
+        document.getElementById('eventoTopo').innerText = "Selecione um Evento";
+        return;
     }
-  });
 
-  const saldo = receita - despesa;
+    document.getElementById('eventoTopo').innerText = eventoAtivo;
+    const filtrados = dadosGlobal.filter(d => String(d.Evento).toLowerCase() === eventoAtivo.toLowerCase());
 
-  receitaEl.innerText = receita.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-  despesaEl.innerText = despesa.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-  resultadoEl.innerText = saldo.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-  resultadoEl.style.color = saldo >= 0 ? '#2ecc71' : '#e74c3c';
+    let rec = 0, des = 0, cats = {};
 
-  montarTabela(filtrados);
-  desenharGraficos(receita, despesa, categorias);
+    filtrados.forEach(d => {
+        if (d.Tipo === "Receita") rec += d.ValorTotal;
+        else {
+            des += d.ValorTotal;
+            cats[d.Categoria] = (cats[d.Categoria] || 0) + d.ValorTotal;
+        }
+    });
+
+    // Atualiza Cards
+    document.getElementById('receita').innerText = rec.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    document.getElementById('despesa').innerText = des.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const saldo = rec - des;
+    const resEl = document.getElementById('resultado');
+    resEl.innerText = saldo.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    resEl.style.color = saldo >= 0 ? 'var(--success)' : 'var(--danger)';
+
+    // Atualiza Tabela
+    const tabela = document.getElementById('tabela');
+    tabela.innerHTML = filtrados.map(d => `
+        <tr>
+            <td>${d.Categoria}</td>
+            <td>${d.Item}</td>
+            <td>${d.ValorTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+        </tr>
+    `).join('');
+
+    renderizarGraficos(rec, des, cats);
 }
 
-// MONTAR TABELA
-function montarTabela(filtrados){
-  tabelaEl.innerHTML = '';
-  filtrados.forEach(d=>{
-    tabelaEl.innerHTML += `
-      <tr>
-        <td>${d.Categoria}</td>
-        <td>${d.Item}</td>
-        <td>${d.ValorTotal.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</td>
-      </tr>`;
-  });
+function renderizarGraficos(rec, des, cats) {
+    if (barChart) barChart.destroy();
+    if (pieChart) pieChart.destroy();
+
+    const ctxBar = document.getElementById('barChart').getContext('2d');
+    barChart = new Chart(ctxBar, {
+        type: 'bar',
+        data: {
+            labels: ['Receitas', 'Despesas'],
+            datasets: [{
+                data: [rec, des],
+                backgroundColor: ['#2ecc71', '#e74c3c']
+            }]
+        },
+        options: { plugins: { legend: { display: false } } }
+    });
+
+    const ctxPie = document.getElementById('pieChart').getContext('2d');
+    pieChart = new Chart(ctxPie, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(cats),
+            datasets: [{
+                data: Object.values(cats),
+                backgroundColor: ['#3498db', '#9b59b6', '#f1c40f', '#e67e22', '#1abc9c']
+            }]
+        }
+    });
 }
 
-// GRÁFICOS
-function gerarCores(q){ return Array.from({length:q},(_,i)=>`rgb(${220-i*120/q},60,60)`); }
-function desenharGraficos(receita, despesa, categorias){
-  if(barChart) barChart.destroy();
-  if(pieChart) pieChart.destroy();
-
-  barChart = new Chart(document.getElementById('barChart'),{
-    type:'bar',
-    data:{
-      labels:['Receita','Despesa'],
-      datasets:[{data:[receita,despesa],backgroundColor:['#2ecc71','#e74c3c']}]
-    }
-  });
-
-  pieChart = new Chart(document.getElementById('pieChart'),{
-    type:'pie',
-    data:{
-      labels:Object.keys(categorias),
-      datasets:[{data:Object.values(categorias),backgroundColor:gerarCores(Object.keys(categorias).length)}]
-    }
-  });
-}
-
-// EVENTOS ONLINE/OFFLINE
-window.addEventListener('online', ()=>{ enviarPendentes(); carregarOnline(); });
-window.addEventListener('offline', ()=>{ console.log("Você está offline"); });
-
-// INICIALIZAÇÃO
-pendentes = JSON.parse(localStorage.getItem('pendentes') || '[]');
-eventoAtivo = localStorage.getItem('eventoAtivo');
-if(eventoAtivo) eventoTopo.innerText = eventoAtivo;
-
-carregarOnline();
-
-// SERVICE WORKER
-if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('service-worker.js');
-}
+// Inicialização
+window.onload = carregarDados;
+window.addEventListener('online', carregarDados);
 </script>
-
 </body>
-</html>
-
-
-
+</html>  

@@ -8,32 +8,32 @@
 
     <style>
         :root { --primary:#3498db; --success:#2ecc71; --danger:#e74c3c; --bg:#f0f2f5; }
-        body { margin:0; font-family: Arial, sans-serif; background: var(--bg); }
-        header { background: var(--primary); color:#fff; padding:15px; text-align:center; font-size:1.2em; }
+        body { margin:0; font-family: Arial, sans-serif; background: var(--bg); color: #333; }
+        header { background: var(--primary); color:#fff; padding:15px; text-align:center; font-size:1.2em; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         .container { max-width:1200px; margin:auto; padding:20px; }
         .cards { display:flex; gap:15px; overflow-x:auto; padding-bottom: 10px; }
-        .card { background:#fff; padding:20px; border-radius:12px; min-width:200px; text-align:center; box-shadow:0 2px 8px rgba(0,0,0,.1); flex: 1; }
-        .card h3 { margin:0 0 10px; font-size:.9em; color:#7f8c8d; }
-        .card p { margin:0; font-size:24px; font-weight:bold; }
+        .card { background:#fff; padding:20px; border-radius:12px; min-width:180px; text-align:center; box-shadow:0 2px 8px rgba(0,0,0,.1); flex: 1; }
+        .card h3 { margin:0 0 10px; font-size:.85em; color:#7f8c8d; text-transform: uppercase; }
+        .card p { margin:0; font-size:22px; font-weight:bold; }
         .charts { display:grid; grid-template-columns:1fr; gap:20px; margin-top:20px; }
         @media(min-width:768px){ .charts { grid-template-columns:1fr 1fr; } }
         .box { background:#fff; padding:20px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.1); margin-top: 20px; }
-        table { width:100%; border-collapse:collapse; margin-top:10px; }
-        th, td { border-bottom:1px solid #eee; padding:10px; text-align:left; }
-        th { font-size:.85em; color:#7f8c8d; }
-        small { display:block; margin-top:5px; font-size:.75em; color:#ecf0f1; }
+        table { width:100%; border-collapse:collapse; margin-top:10px; font-size: 0.9em; }
+        th, td { border-bottom:1px solid #eee; padding:12px 8px; text-align:left; }
+        th { color:#7f8c8d; font-weight: 600; }
+        small { display:block; margin-top:5px; font-size:.7em; color:#d1d8e0; }
+        .status-badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.8em; }
     </style>
 </head>
 
 <body>
 
 <header>
-    Dashboard Financeiro – Controle de Evento
-    <small id="status">Iniciando sincronização...</small>
+    Controle Financeiro de Evento
+    <small id="status">Sincronizando...</small>
 </header>
 
 <div class="container">
-
     <div class="cards">
         <div class="card">
             <h3>Receitas</h3>
@@ -55,8 +55,8 @@
     </div>
 
     <div class="box">
-        <h3>📋 Lista de Movimentações</h3>
-        <table>
+        <h3>📋 Detalhamento</h3>
+        <table id="tabelaPrincipal">
             <thead>
                 <tr>
                     <th>Categoria</th>
@@ -64,7 +64,7 @@
                     <th>Valor</th>
                 </tr>
             </thead>
-            <tbody id="tabela"></tbody>
+            <tbody id="tabelaCorpo"></tbody>
         </table>
     </div>
 </div>
@@ -72,100 +72,105 @@
 <script>
 const API_URL = "https://script.google.com/macros/s/AKfycbxQJ_0NInJ99dneHs5Lpcma4RgbpCH-mHy-1oPtuo8qVYfmGFd_DadVse7guNibdxTV/exec";
 
-let dados = [];
+let dadosGlobal = [];
 let barChart, pieChart;
 
+// Converte qualquer formato de número (brasileiro ou americano) para cálculo
 function parseNumber(v) {
-    if (!v) return 0;
+    if (v === undefined || v === null || v === "") return 0;
     if (typeof v === 'number') return v;
-    let limpo = String(v).replace(/\./g, '').replace(',', '.');
+    let limpo = String(v).replace("R$", "").replace(/\s/g, "").replace(/\./g, "").replace(',', '.');
     return parseFloat(limpo) || 0;
 }
 
 async function carregarDados() {
     const status = document.getElementById("status");
     try {
-        const resposta = await fetch(API_URL + "?nocache=" + Date.now());
+        const resposta = await fetch(`${API_URL}?nocache=${Date.now()}`);
         const json = await resposta.json();
+        console.log("Dados Brutos:", json);
 
-        dados = json.map(d => ({
-            Tipo: String(d.Tipo || "").toLowerCase(),
-            Categoria: d.Categoria || "Outros",
-            Item: d.Item || "S/N",
-            ValorTotal: parseNumber(d.ValorTotal) 
-        }));
+        dadosGlobal = json.map(linha => {
+            // Função para buscar a coluna mesmo com nomes variados
+            const findCol = (targets) => {
+                const key = Object.keys(linha).find(k => 
+                    targets.includes(k.trim().toLowerCase().replace(/\s/g, ''))
+                );
+                return key ? linha[key] : null;
+            };
 
-        status.innerText = "Sincronizado: " + dados.length + " registros";
+            return {
+                Tipo: String(findCol(["tipo"]) || "").toLowerCase(),
+                Categoria: findCol(["categoria"]) || "Geral",
+                Item: findCol(["item"]) || "S/N",
+                ValorTotal: parseNumber(findCol(["valortotal", "total", "valor"]))
+            };
+        });
+
+        status.innerText = "Sincronizado: " + dadosGlobal.length + " linhas";
         status.style.color = "#2ecc71";
     } catch (erro) {
-        console.error(erro);
-        status.innerText = "Erro ao processar dados";
+        console.error("Erro no Fetch:", erro);
+        status.innerText = "Erro ao conectar com a planilha";
         status.style.color = "#e74c3c";
     }
-    atualizarDashboard();
+    atualizarInterface();
 }
 
-function atualizarDashboard() {
-    let receita = 0;
-    let despesa = 0;
-    let categorias = {};
+function atualizarInterface() {
+    let rec = 0, des = 0, cats = {};
 
-    dados.forEach(d => {
-        if(d.Tipo.includes("receita")){
-            receita += d.ValorTotal;
-        } else if(d.Tipo.includes("despesa")) {
-            despesa += d.ValorTotal;
-            categorias[d.Categoria] = (categorias[d.Categoria] || 0) + d.ValorTotal;
+    const htmlTabela = dadosGlobal.map(d => {
+        const valor = d.ValorTotal;
+        const isReceita = d.Tipo.includes("receita");
+
+        if(isReceita) rec += valor;
+        else {
+            des += valor;
+            cats[d.Categoria] = (cats[d.Categoria] || 0) + valor;
         }
-    });
 
-    document.getElementById("receita").innerText = receita.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
-    document.getElementById("despesa").innerText = despesa.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+        return `
+            <tr>
+                <td>${d.Categoria}</td>
+                <td>${d.Item}</td>
+                <td style="font-weight:bold; color:${isReceita ? 'var(--success)' : '#333'}">
+                    ${valor.toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}
+                </td>
+            </tr>
+        `;
+    }).join("");
+
+    document.getElementById("tabelaCorpo").innerHTML = htmlTabela;
+    document.getElementById("receita").innerText = rec.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+    document.getElementById("despesa").innerText = des.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
     
-    const saldo = receita - despesa;
+    const saldo = rec - des;
     const saldoEl = document.getElementById("saldo");
     saldoEl.innerText = saldo.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
     saldoEl.style.color = saldo >= 0 ? "var(--success)" : "var(--danger)";
 
-    document.getElementById("tabela").innerHTML = dados.map(d => `
-        <tr>
-            <td>${d.Categoria}</td>
-            <td>${d.Item}</td>
-            <td style="color:${d.Tipo.includes('receita') ? 'var(--success)' : 'black'}">
-                ${d.ValorTotal.toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}
-            </td>
-        </tr>
-    `).join("");
-
-    renderizarGraficos(receita, despesa, categorias);
+    renderizarGraficos(rec, des, cats);
 }
 
 function renderizarGraficos(rec, des, cats) {
     if(barChart) barChart.destroy();
     if(pieChart) pieChart.destroy();
 
-    const ctxBar = document.getElementById("barChart").getContext('2d');
-    barChart = new Chart(ctxBar, {
+    barChart = new Chart(document.getElementById("barChart"), {
         type: "bar",
         data: {
             labels: ["Receitas", "Despesas"],
-            datasets: [{
-                data: [rec, des],
-                backgroundColor: ['#2ecc71', '#e74c3c']
-            }]
+            datasets: [{ data: [rec, des], backgroundColor: ['#2ecc71', '#e74c3c'] }]
         },
         options: { responsive: true, plugins: { legend: { display: false } } }
     });
 
-    const ctxPie = document.getElementById("pieChart").getContext('2d');
-    pieChart = new Chart(ctxPie, {
+    pieChart = new Chart(document.getElementById("pieChart"), {
         type: "doughnut",
         data: {
             labels: Object.keys(cats),
-            datasets: [{
-                data: Object.values(cats),
-                backgroundColor: ['#3498db', '#9b59b6', '#f1c40f', '#e67e22', '#1abc9c']
-            }]
+            datasets: [{ data: Object.values(cats), backgroundColor: ['#3498db', '#9b59b6', '#f1c40f', '#e67e22', '#1abc9c'] }]
         },
         options: { responsive: true }
     });
@@ -173,6 +178,5 @@ function renderizarGraficos(rec, des, cats) {
 
 window.onload = carregarDados;
 </script>
-
 </body>
 </html>

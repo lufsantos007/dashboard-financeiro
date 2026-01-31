@@ -4,121 +4,36 @@
     <meta charset="UTF-8">
     <title>Dashboard Financeiro</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <!-- Biblioteca de gráficos -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <!-- Estilos visuais -->
     <style>
-        :root {
-            --primary:#3498db;
-            --success:#2ecc71;
-            --danger:#e74c3c;
-            --bg:#f0f2f5;
-        }
-
-        body {
-            margin:0;
-            font-family: Arial, sans-serif;
-            background: var(--bg);
-        }
-
-        header {
-            background: var(--primary);
-            color:#fff;
-            padding:15px;
-            text-align:center;
-            font-size:1.2em;
-        }
-
-        .container {
-            max-width:1200px;
-            margin:auto;
-            padding:20px;
-        }
-
-        .cards {
-            display:flex;
-            gap:15px;
-            overflow-x:auto;
-        }
-
-        .card {
-            background:#fff;
-            padding:20px;
-            border-radius:12px;
-            min-width:200px;
-            text-align:center;
-            box-shadow:0 2px 8px rgba(0,0,0,.1);
-        }
-
-        .card h3 {
-            margin:0 0 10px;
-            font-size:.9em;
-            color:#7f8c8d;
-        }
-
-        .card p {
-            margin:0;
-            font-size:24px;
-            font-weight:bold;
-        }
-
-        .charts {
-            display:grid;
-            grid-template-columns:1fr;
-            gap:20px;
-            margin-top:20px;
-        }
-
-        @media(min-width:768px){
-            .charts { grid-template-columns:1fr 1fr; }
-        }
-
-        .box {
-            background:#fff;
-            padding:20px;
-            border-radius:12px;
-            box-shadow:0 2px 8px rgba(0,0,0,.1);
-        }
-
-        table {
-            width:100%;
-            border-collapse:collapse;
-            margin-top:10px;
-        }
-
-        th, td {
-            border-bottom:1px solid #eee;
-            padding:10px;
-            text-align:left;
-        }
-
-        th {
-            font-size:.85em;
-            color:#7f8c8d;
-        }
-
-        small {
-            display:block;
-            margin-top:5px;
-            font-size:.7em;
-            color:#ecf0f1;
-        }
+        :root { --primary:#3498db; --success:#2ecc71; --danger:#e74c3c; --bg:#f0f2f5; }
+        body { margin:0; font-family: Arial, sans-serif; background: var(--bg); }
+        header { background: var(--primary); color:#fff; padding:15px; text-align:center; font-size:1.2em; }
+        .container { max-width:1200px; margin:auto; padding:20px; }
+        .cards { display:flex; gap:15px; overflow-x:auto; padding-bottom: 10px; }
+        .card { background:#fff; padding:20px; border-radius:12px; min-width:200px; text-align:center; box-shadow:0 2px 8px rgba(0,0,0,.1); flex: 1; }
+        .card h3 { margin:0 0 10px; font-size:.9em; color:#7f8c8d; }
+        .card p { margin:0; font-size:24px; font-weight:bold; }
+        .charts { display:grid; grid-template-columns:1fr; gap:20px; margin-top:20px; }
+        @media(min-width:768px){ .charts { grid-template-columns:1fr 1fr; } }
+        .box { background:#fff; padding:20px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.1); margin-top: 20px; }
+        table { width:100%; border-collapse:collapse; margin-top:10px; }
+        th, td { border-bottom:1px solid #eee; padding:10px; text-align:left; }
+        th { font-size:.85em; color:#7f8c8d; }
+        small { display:block; margin-top:5px; font-size:.75em; color:#ecf0f1; }
     </style>
 </head>
 
-
-    <body>
+<body>
 
 <header>
-    Dashboard Financeiro – Evento Único
-    <small id="status">Carregando dados...</small>
+    Dashboard Financeiro – Controle de Evento
+    <small id="status">Iniciando sincronização...</small>
 </header>
 
 <div class="container">
 
-    <!-- CARDS -->
     <div class="cards">
         <div class="card">
             <h3>Receitas</h3>
@@ -134,15 +49,13 @@
         </div>
     </div>
 
-    <!-- GRÁFICOS -->
     <div class="charts">
-        <div class="box"><canvas id="barChart"></canvas></div>
-        <div class="box"><canvas id="pieChart"></canvas></div>
+        <div class="box"><h4>Fluxo de Caixa</h4><canvas id="barChart"></canvas></div>
+        <div class="box"><h4>Gastos por Categoria</h4><canvas id="pieChart"></canvas></div>
     </div>
 
-    <!-- TABELA -->
     <div class="box">
-        <h3>📋 Movimentações</h3>
+        <h3>📋 Lista de Movimentações</h3>
         <table>
             <thead>
                 <tr>
@@ -154,61 +67,48 @@
             <tbody id="tabela"></tbody>
         </table>
     </div>
-
 </div>
 
-
-
-        <script>
-
-
-            const API_URL = "https://script.google.com/macros/s/AKfycbxQJ_0NInJ99dneHs5Lpcma4RgbpCH-mHy-1oPtuo8qVYfmGFd_DadVse7guNibdxTV/exec";
+<script>
+const API_URL = "https://script.google.com/macros/s/AKfycbxQJ_0NInJ99dneHs5Lpcma4RgbpCH-mHy-1oPtuo8qVYfmGFd_DadVse7guNibdxTV/exec";
 
 let dados = [];
 let barChart, pieChart;
 
+// Função crucial para converter "28.000,00" em número real 28000.00
+function parseNumber(v) {
+    if (!v) return 0;
+    if (typeof v === 'number') return v;
+    let limpo = String(v).replace(/\./g, '').replace(',', '.');
+    return parseFloat(limpo) || 0;
+}
 
-
-            const API_URL = "https://script.google.com/macros/s/AKfycbxQJ_0NInJ99dneHs5Lpcma4RgbpCH-mHy-1oPtuo8qVYfmGFd_DadVse7guNibdxTV/exec";
-
-let dados = [];
-let barChart, pieChart;
-
-
-
-            async function carregarDados(){
+async function carregarDados() {
     const status = document.getElementById("status");
-
     try {
         const resposta = await fetch(API_URL + "?nocache=" + Date.now());
         const json = await resposta.json();
 
-        // Remove cabeçalho se existir
-        const linhas = isNaN(json[0][7]) ? json.slice(1) : json;
-
-        dados = linhas.map(linha => ({
-            Tipo: String(linha[2]).toLowerCase(),   // Receita ou Despesa
-            Categoria: linha[3] || "Geral",
-            Item: linha[4] || "",
+        // O Google Sheets envia arrays. Mapeamos baseado nas suas colunas reais:
+        // Coluna 2 (Índice 2) = Tipo | Coluna 3 = Categoria | Coluna 4 = Item | Coluna 7 = Valor Total
+        dados = json.slice(1).map(linha => ({
+            Tipo: String(linha[2] || "").toLowerCase(),
+            Categoria: linha[3] || "Outros",
+            Item: linha[4] || "S/N",
             ValorTotal: parseNumber(linha[7])
         }));
 
-        status.innerText = "Sincronizado: " + dados.length + " registros";
+        status.innerText = "Sincronizado: " + dados.length + " registros encontrados";
         status.style.color = "#2ecc71";
-
     } catch (erro) {
         console.error(erro);
-        status.innerText = "Erro ao carregar dados";
+        status.innerText = "Erro na conexão com a planilha";
         status.style.color = "#e74c3c";
     }
-
     atualizarDashboard();
 }
 
-
-
-
-            function atualizarDashboard(){
+function atualizarDashboard() {
     let receita = 0;
     let despesa = 0;
     let categorias = {};
@@ -216,66 +116,68 @@ let barChart, pieChart;
     dados.forEach(d => {
         if(d.Tipo.includes("receita")){
             receita += d.ValorTotal;
-        } else {
+        } else if(d.Tipo.includes("despesa")) {
             despesa += d.ValorTotal;
             categorias[d.Categoria] = (categorias[d.Categoria] || 0) + d.ValorTotal;
         }
     });
 
-    document.getElementById("receita").innerText =
-        receita.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
-
-    document.getElementById("despesa").innerText =
-        despesa.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
-
+    // Atualiza Textos
+    document.getElementById("receita").innerText = receita.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+    document.getElementById("despesa").innerText = despesa.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+    
     const saldo = receita - despesa;
     const saldoEl = document.getElementById("saldo");
-    saldoEl.innerText =
-        saldo.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+    saldoEl.innerText = saldo.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
     saldoEl.style.color = saldo >= 0 ? "var(--success)" : "var(--danger)";
 
+    // Atualiza Tabela
     document.getElementById("tabela").innerHTML = dados.map(d => `
         <tr>
             <td>${d.Categoria}</td>
             <td>${d.Item}</td>
-            <td>${d.ValorTotal.toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}</td>
+            <td style="color:${d.Tipo.includes('receita') ? 'var(--success)' : 'black'}">
+                ${d.ValorTotal.toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}
+            </td>
         </tr>
     `).join("");
 
     renderizarGraficos(receita, despesa, categorias);
 }
 
-
-
-            function renderizarGraficos(rec, des, cats){
+function renderizarGraficos(rec, des, cats) {
     if(barChart) barChart.destroy();
     if(pieChart) pieChart.destroy();
 
-    barChart = new Chart(document.getElementById("barChart"), {
-        type:"bar",
-        data:{
-            labels:["Receitas","Despesas"],
-            datasets:[{ data:[rec,des] }]
+    const ctxBar = document.getElementById("barChart").getContext('2d');
+    barChart = new Chart(ctxBar, {
+        type: "bar",
+        data: {
+            labels: ["Receitas", "Despesas"],
+            datasets: [{
+                data: [rec, des],
+                backgroundColor: ['#2ecc71', '#e74c3c']
+            }]
         },
-        options:{ responsive:true, plugins:{legend:{display:false}} }
+        options: { responsive: true, plugins: { legend: { display: false } } }
     });
 
-    pieChart = new Chart(document.getElementById("pieChart"), {
-        type:"doughnut",
-        data:{
-            labels:Object.keys(cats),
-            datasets:[{ data:Object.values(cats) }]
+    const ctxPie = document.getElementById("pieChart").getContext('2d');
+    pieChart = new Chart(ctxPie, {
+        type: "doughnut",
+        data: {
+            labels: Object.keys(cats),
+            datasets: [{
+                data: Object.values(cats),
+                backgroundColor: ['#3498db', '#9b59b6', '#f1c40f', '#e67e22', '#1abc9c']
+            }]
         },
-        options:{ responsive:true }
+        options: { responsive: true }
     });
 }
 
-
-
-            window.onload = carregarDados;
+window.onload = carregarDados;
 </script>
 
-
-
-        </body>
+</body>
 </html>

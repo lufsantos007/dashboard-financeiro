@@ -89,22 +89,23 @@ async function carregarDados() {
         const resposta = await fetch(API_URL + "?nocache=" + Date.now());
         const json = await resposta.json();
 
-        // O Google Sheets envia arrays. Mapeamos baseado nas suas colunas reais:
-        // Coluna 2 (Índice 2) = Tipo | Coluna 3 = Categoria | Coluna 4 = Item | Coluna 7 = Valor Total
-        dados = json.slice(1).map(linha => ({
-            Tipo: String(linha[2] || "").toLowerCase(),
-            Categoria: linha[3] || "Outros",
-            Item: linha[4] || "S/N",
-            ValorTotal: parseNumber(linha[7])
+        dados = json.map(d => ({
+            // Mapeando exatamente os nomes das colunas da sua lista
+            Tipo: String(d.Tipo || "").toLowerCase(),
+            Categoria: d.Categoria || "Outros",
+            Item: d.Item || "S/N",
+            // Note que aqui usamos 'ValorTotal' grudado, conforme seu script limpa
+            ValorTotal: parseNumber(d.ValorTotal) 
         }));
 
-        status.innerText = "Sincronizado: " + dados.length + " registros encontrados";
+        status.innerText = "Sincronizado: " + dados.length + " registros";
         status.style.color = "#2ecc71";
     } catch (erro) {
-        console.error(erro);
-        status.innerText = "Erro na conexão com a planilha";
+        status.innerText = "Erro ao processar dados";
         status.style.color = "#e74c3c";
     }
+    atualizarDashboard();
+}
     atualizarDashboard();
 }
 
@@ -181,3 +182,4 @@ window.onload = carregarDados;
 
 </body>
 </html>
+
